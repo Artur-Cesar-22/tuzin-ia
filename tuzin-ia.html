@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#534AB7"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-title" content="Tuzin IA"/>
+  <title>Tuzin IA</title>
+  <link rel="manifest" href="manifest.json"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; }
+    #app { display: flex; flex-direction: column; height: 100svh; width: 100%; max-width: 600px; background: #fff; }
+    #header { padding: 14px 18px; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; background: #fafafa; }
+    #header-left { display: flex; align-items: center; gap: 10px; }
+    .pig-icon { width: 36px; height: 36px; border-radius: 50%; background: #EEEDFE; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    #header h2 { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+    #header p { font-size: 12px; color: #888; }
+    #total-header { text-align: right; }
+    #total-header span { font-size: 11px; color: #888; display: block; }
+    #total-display { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+    #tabs { display: flex; border-bottom: 1px solid #eee; background: #fff; }
+    .tab { flex: 1; padding: 11px; font-size: 14px; color: #888; border: none; background: transparent; cursor: pointer; border-bottom: 2px solid transparent; font-family: inherit; }
+    .tab.active { color: #534AB7; border-bottom: 2px solid #534AB7; font-weight: 600; }
+    #chat-view { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #gastos-view { flex: 1; flex-direction: column; overflow: hidden; display: none; }
+    #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .msg { max-width: 85%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.6; }
+    .msg.bot { background: #f0f0f0; color: #1a1a1a; align-self: flex-start; border-radius: 4px 16px 16px 16px; }
+    .msg.user { background: #534AB7; color: #fff; align-self: flex-end; border-radius: 16px 4px 16px 16px; }
+    .msg.loading { color: #999; font-style: italic; }
+    .sugestoes { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px; }
+    .sug-btn { padding: 7px 13px; border: 1px solid #ddd; border-radius: 20px; background: #fff; font-size: 12px; color: #555; cursor: pointer; font-family: inherit; }
+    .sug-btn:active { background: #f0f0f0; }
+    #input-area { padding: 12px 16px; border-top: 1px solid #eee; display: flex; gap: 8px; background: #fff; }
+    #msg-input { flex: 1; padding: 10px 16px; border: 1px solid #ddd; border-radius: 24px; font-size: 14px; outline: none; font-family: inherit; background: #fafafa; color: #1a1a1a; }
+    #msg-input:focus { border-color: #534AB7; background: #fff; }
+    #send-btn { width: 44px; height: 44px; border-radius: 50%; background: #534AB7; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    #send-btn:active { background: #3C3489; }
+    #send-btn:disabled { background: #ccc; cursor: not-allowed; }
+    #gastos-stats { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #eee; }
+    .stat-card { flex: 1; background: #f7f7f7; border-radius: 10px; padding: 10px 12px; }
+    .stat-card p:first-child { font-size: 11px; color: #888; margin-bottom: 4px; }
+    .stat-card p:last-child { font-size: 17px; font-weight: 600; color: #1a1a1a; }
+    #gastos-list { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+    .gasto-item { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border: 1px solid #eee; border-radius: 12px; background: #fff; }
+    .cat-badge { padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .gasto-info { flex: 1; min-width: 0; }
+    .gasto-desc { font-size: 13px; color: #1a1a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .gasto-data { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .gasto-valor { font-size: 14px; font-weight: 600; color: #1a1a1a; white-space: nowrap; }
+    .del-btn { background: none; border: none; cursor: pointer; color: #bbb; font-size: 18px; padding: 2px 5px; line-height: 1; }
+    .del-btn:active { color: #e24b4a; }
+    #export-btn { margin: 12px 16px; padding: 13px; border: 1.5px solid #534AB7; border-radius: 12px; background: transparent; color: #534AB7; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    #export-btn:active { background: #EEEDFE; }
+    .empty-state { text-align: center; padding: 48px 24px; color: #aaa; font-size: 14px; line-height: 1.8; }
+    .empty-state .emoji { font-size: 40px; display: block; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div id="header-left">
+      <div class="pig-icon">🐖</div>
+      <div>
+        <h2>Tuzin IA</h2>
+        <p>Controle de gastos inteligente</p>
+      </div>
+    </div>
+    <div id="total-header">
+      <span>total do mês</span>
+      <div id="total-display">R$ 0,00</div>
+    </div>
+  </div>
+
+  <div id="tabs">
+    <button class="tab active" onclick="switchTab('chat')">💬 Chat</button>
+    <button class="tab" onclick="switchTab('gastos')">📊 Meus gastos</button>
+  </div>
+
+  <div id="chat-view">
+    <div id="messages">
+      <div class="msg bot">Olá! Sou o Tuzin IA 🐖<br><br>Me conta seus gastos em linguagem natural e eu registro tudo pra você!<br><br>Exemplos:<br>• <i>"Gastei 45 reais no almoço hoje"</i><br>• <i>"Uber 22 reais ontem"</i><br>• <i>"Farmácia 67,50"</i></div>
+    </div>
+    <div class="sugestoes">
+      <button class="sug-btn" onclick="usar(this)">🍽️ Almoço 35 reais</button>
+      <button class="sug-btn" onclick="usar(this)">🚗 Uber 22 reais</button>
+      <button class="sug-btn" onclick="usar(this)">🛒 Mercado 150 hoje</button>
+      <button class="sug-btn" onclick="usar(this)">📺 Netflix 45,90</button>
+    </div>
+    <div id="input-area">
+      <input id="msg-input" type="text" placeholder="Ex: gastei 50 no mercado hoje..." onkeydown="if(event.key==='Enter')enviar()"/>
+      <button id="send-btn" onclick="enviar()">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M22 2L11 13" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="gastos-view">
+    <div id="gastos-stats">
+      <div class="stat-card"><p>total do mês</p><p id="stat-total">R$ 0,00</p></div>
+      <div class="stat-card"><p>lançamentos</p><p id="stat-count">0</p></div>
+      <div class="stat-card"><p>maior gasto</p><p id="stat-maior">R$ 0,00</p></div>
+    </div>
+    <div id="gastos-list">
+      <div class="empty-state"><span class="emoji">🐖</span>Nenhum gasto ainda.<br>Use o chat para adicionar!</div>
+    </div>
+    <button id="export-btn" onclick="exportar()">⬇️ Baixar planilha Excel (.xlsx)</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const CATS = {
+  "Alimentação": {bg:"#EEEDFE",color:"#3C3489"},
+  "Transporte":  {bg:"#E1F5EE",color:"#0F6E56"},
+  "Saúde":       {bg:"#FCEBEB",color:"#A32D2D"},
+  "Lazer":       {bg:"#FAEEDA",color:"#854F0B"},
+  "Compras":     {bg:"#FBEAF0",color:"#993556"},
+  "Educação":    {bg:"#E6F1FB",color:"#185FA5"},
+  "Moradia":     {bg:"#EAF3DE",color:"#3B6D11"},
+  "Outros":      {bg:"#F1EFE8",color:"#5F5E5A"}
+};
+
+const PALAVRAS_CAT = {
+  "Alimentação": ["almoço","jantar","café","lanche","restaurante","mercado","supermercado","padaria","ifood","delivery","pizza","açaí","comida","refeição","hamburguer","salgado","feira","boteco","churrasco","sorvete"],
+  "Transporte":  ["uber","99","táxi","taxi","ônibus","combustível","gasolina","estacionamento","metrô","passagem","transporte","moto","bicicleta","frete","pedágio","posto"],
+  "Saúde":       ["farmácia","remédio","médico","consulta","exame","dentista","hospital","clínica","plano","saúde","academia","suplemento","vitamina"],
+  "Lazer":       ["cinema","show","teatro","viagem","hotel","bar","balada","festa","jogo","netflix","spotify","streaming","assinatura","lazer","parque","passeio"],
+  "Compras":     ["roupa","sapato","eletrônico","celular","computador","loja","shopping","amazon","compra","presente","tênis","bolsa"],
+  "Educação":    ["curso","livro","escola","faculdade","mensalidade","material","estudo","educação","udemy","aula","inglês"],
+  "Moradia":     ["aluguel","condomínio","luz","água","internet","gás","energia","conta","reforma","móvel","iptu"]
+};
+
+function detectarCategoria(txt) {
+  const lower = txt.toLowerCase();
+  for (const [cat, palavras] of Object.entries(PALAVRAS_CAT)) {
+    if (palavras.some(p => lower.includes(p))) return cat;
+  }
+  return "Outros";
+}
+
+function extrairValor(txt) {
+  const matches = txt.match(/\d+([.,]\d{1,2})?/g);
+  if (!matches) return null;
+  const nums = matches.map(m => parseFloat(m.replace(',','.'))).filter(n => n > 0 && n < 100000);
+  return nums.length ? Math.max(...nums) : null;
+}
+
+function extrairData(txt) {
+  const hoje = new Date();
+  const lower = txt.toLowerCase();
+  if (lower.includes('ontem')) {
+    const d = new Date(hoje); d.setDate(d.getDate()-1);
+    return d.toLocaleDateString('pt-BR');
+  }
+  if (lower.includes('semana passada')) {
+    const d = new Date(hoje); d.setDate(d.getDate()-7);
+    return d.toLocaleDateString('pt-BR');
+  }
+  return hoje.toLocaleDateString('pt-BR');
+}
+
+function extrairDescricao(txt) {
+  let desc = txt.replace(/gastei|comprei|paguei|fiz|foi|no |na |de |do |da |por |uns?|umas?|reais|real|r\$|\d+([.,]\d+)?|hoje|ontem|semana passada/gi,'').trim();
+  desc = desc.replace(/\s+/g,' ').trim();
+  if (desc.length < 3) desc = txt.replace(/\d+([.,]\d+)?/g,'').replace(/reais|r\$/gi,'').trim();
+  return desc ? desc.charAt(0).toUpperCase() + desc.slice(1) : txt;
+}
+
+// Carrega gastos salvos no localStorage
+let gastos = [];
+try { gastos = JSON.parse(localStorage.getItem('tuzin_gastos') || '[]'); } catch(e) {}
+
+let busy = false;
+
+function salvar() {
+  try { localStorage.setItem('tuzin_gastos', JSON.stringify(gastos)); } catch(e) {}
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active',(i===0&&tab==='chat')||(i===1&&tab==='gastos')));
+  document.getElementById('chat-view').style.display = tab==='chat'?'flex':'none';
+  document.getElementById('gastos-view').style.display = tab==='gastos'?'flex':'none';
+  if(tab==='gastos') renderGastos();
+}
+
+function usar(btn) {
+  document.getElementById('msg-input').value = btn.textContent.replace(/^[^\s]+\s/,'');
+  document.getElementById('msg-input').focus();
+}
+
+function addMsg(html, tipo) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + tipo;
+  div.innerHTML = html;
+  const msgs = document.getElementById('messages');
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+async function enviar() {
+  const input = document.getElementById('msg-input');
+  const txt = input.value.trim();
+  if (!txt || busy) return;
+  input.value = '';
+  busy = true;
+  document.getElementById('send-btn').disabled = true;
+  addMsg(txt, 'user');
+  const loading = addMsg('Analisando...', 'bot loading');
+
+  let registrado = false;
+
+  try {
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 300,
+        system: "Você é um assistente financeiro chamado Tuzin IA. Extraia dados de gastos do texto do usuário e responda SOMENTE com JSON válido, sem markdown, sem explicações. Formato: {\"descricao\":\"string\",\"valor\":number,\"categoria\":\"string\",\"data\":\"string\",\"confirmacao\":\"string\"}. Categorias disponíveis: Alimentação, Transporte, Saúde, Lazer, Compras, Educação, Moradia, Outros. Se não for um gasto claro, retorne {\"erro\":\"mensagem amigável\"}.",
+        messages: [{ role: "user", content: `Data de hoje: ${hoje}\nTexto: "${txt}"` }]
+      })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const raw = data.content.map(b => b.text||'').join('').replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(raw);
+    loading.remove();
+    if (parsed.erro) {
+      addMsg(parsed.erro, 'bot');
+    } else {
+      gastos.unshift({ ...parsed, id: Date.now() });
+      salvar();
+      atualizarTotal();
+      const cat = CATS[parsed.categoria] || CATS["Outros"];
+      addMsg(`✅ Registrado! <span style="background:${cat.bg};color:${cat.color};padding:2px 9px;border-radius:12px;font-size:12px;font-weight:600">${parsed.categoria}</span><br><b>${parsed.descricao}</b> — R$ ${Number(parsed.valor).toFixed(2).replace('.',',')} em ${parsed.data}<br><span style="font-size:12px;color:#888">${parsed.confirmacao}</span>`, 'bot');
+      registrado = true;
+    }
+  } catch(e) {
+    loading.remove();
+    const valor = extrairValor(txt);
+    if (valor) {
+      const categoria = detectarCategoria(txt);
+      const data = extrairData(txt);
+      const descricao = extrairDescricao(txt);
+      gastos.unshift({ descricao, valor, categoria, data, id: Date.now() });
+      salvar();
+      atualizarTotal();
+      const cat = CATS[categoria] || CATS["Outros"];
+      addMsg(`✅ Registrado! <span style="background:${cat.bg};color:${cat.color};padding:2px 9px;border-radius:12px;font-size:12px;font-weight:600">${categoria}</span><br><b>${descricao}</b> — R$ ${valor.toFixed(2).replace('.',',')} em ${data}`, 'bot');
+      registrado = true;
+    } else {
+      addMsg('Não consegui identificar um valor. Tente algo como <i>"Almoço 35 reais"</i> ou <i>"Gastei 50 no mercado"</i>.', 'bot');
+    }
+  }
+
+  busy = false;
+  document.getElementById('send-btn').disabled = false;
+}
+
+function atualizarTotal() {
+  const total = gastos.reduce((s,g) => s + Number(g.valor), 0);
+  document.getElementById('total-display').textContent = 'R$ ' + total.toFixed(2).replace('.',',');
+}
+
+function renderGastos() {
+  const lista = document.getElementById('gastos-list');
+  const total = gastos.reduce((s,g) => s + Number(g.valor), 0);
+  const maior = gastos.length ? Math.max(...gastos.map(g => Number(g.valor))) : 0;
+  document.getElementById('stat-total').textContent = 'R$ ' + total.toFixed(2).replace('.',',');
+  document.getElementById('stat-count').textContent = gastos.length;
+  document.getElementById('stat-maior').textContent = 'R$ ' + maior.toFixed(2).replace('.',',');
+  if (!gastos.length) {
+    lista.innerHTML = '<div class="empty-state"><span class="emoji">🐖</span>Nenhum gasto ainda.<br>Use o chat para adicionar!</div>';
+    return;
+  }
+  lista.innerHTML = gastos.map(g => {
+    const cat = CATS[g.categoria] || CATS["Outros"];
+    return `<div class="gasto-item">
+      <span class="cat-badge" style="background:${cat.bg};color:${cat.color}">${g.categoria}</span>
+      <div class="gasto-info">
+        <div class="gasto-desc">${g.descricao}</div>
+        <div class="gasto-data">${g.data}</div>
+      </div>
+      <div class="gasto-valor">R$ ${Number(g.valor).toFixed(2).replace('.',',')}</div>
+      <button class="del-btn" onclick="deletar(${g.id})">×</button>
+    </div>`;
+  }).join('');
+}
+
+function deletar(id) {
+  if (!confirm('Remover este gasto?')) return;
+  gastos = gastos.filter(g => g.id !== id);
+  salvar();
+  atualizarTotal();
+  renderGastos();
+}
+
+function exportar() {
+  if (!gastos.length) { alert('Nenhum gasto para exportar!'); return; }
+  const wb = XLSX.utils.book_new();
+  const dados = [["Data","Descrição","Categoria","Valor (R$)"]];
+  const bycat = {};
+  gastos.forEach(g => {
+    dados.push([g.data, g.descricao, g.categoria, Number(g.valor)]);
+    bycat[g.categoria] = (bycat[g.categoria]||0) + Number(g.valor);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(dados);
+  ws['!cols'] = [{wch:12},{wch:30},{wch:15},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws, "Gastos");
+  const resumo = [["Categoria","Total (R$)"], ...Object.entries(bycat).map(([k,v]) => [k, parseFloat(v.toFixed(2))]), ["TOTAL", parseFloat(gastos.reduce((s,g)=>s+Number(g.valor),0).toFixed(2))]];
+  const ws2 = XLSX.utils.aoa_to_sheet(resumo);
+  ws2['!cols'] = [{wch:15},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws2, "Resumo por categoria");
+  const mes = new Date().toLocaleDateString('pt-BR',{month:'2-digit',year:'numeric'}).replace('/','_');
+  XLSX.utils.writeFile(wb, `tuzin_gastos_${mes}.xlsx`);
+}
+
+// Inicializa total
+atualizarTotal();
+</script>
+</body>
+</html>
