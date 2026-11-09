@@ -30,7 +30,6 @@
     .msg { max-width: 85%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.6; }
     .msg.bot { background: #f0f0f0; color: #1a1a1a; align-self: flex-start; border-radius: 4px 16px 16px 16px; }
     .msg.user { background: #534AB7; color: #fff; align-self: flex-end; border-radius: 16px 4px 16px 16px; }
-    .msg.loading { color: #999; font-style: italic; }
     .sugestoes { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px; }
     .sug-btn { padding: 7px 13px; border: 1px solid #ddd; border-radius: 20px; background: #fff; font-size: 12px; color: #555; cursor: pointer; font-family: inherit; }
     .sug-btn:active { background: #f0f0f0; }
@@ -39,7 +38,6 @@
     #msg-input:focus { border-color: #534AB7; background: #fff; }
     #send-btn { width: 44px; height: 44px; border-radius: 50%; background: #534AB7; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     #send-btn:active { background: #3C3489; }
-    #send-btn:disabled { background: #ccc; cursor: not-allowed; }
     #gastos-stats { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #eee; }
     .stat-card { flex: 1; background: #f7f7f7; border-radius: 10px; padding: 10px 12px; }
     .stat-card p:first-child { font-size: 11px; color: #888; margin-bottom: 4px; }
@@ -74,12 +72,10 @@
       <div id="total-display">R$ 0,00</div>
     </div>
   </div>
-
   <div id="tabs">
     <button class="tab active" onclick="switchTab('chat')">💬 Chat</button>
     <button class="tab" onclick="switchTab('gastos')">📊 Meus gastos</button>
   </div>
-
   <div id="chat-view">
     <div id="messages">
       <div class="msg bot">Olá! Sou o Tuzin IA 🐖<br><br>Me conta seus gastos em linguagem natural e eu registro tudo pra você!<br><br>Exemplos:<br>• <i>"Gastei 45 reais no almoço hoje"</i><br>• <i>"Uber 22 reais ontem"</i><br>• <i>"Farmácia 67,50"</i></div>
@@ -97,7 +93,6 @@
       </button>
     </div>
   </div>
-
   <div id="gastos-view">
     <div id="gastos-stats">
       <div class="stat-card"><p>total do mês</p><p id="stat-total">R$ 0,00</p></div>
@@ -110,9 +105,12 @@
     <button id="export-btn" onclick="exportar()">⬇️ Baixar planilha Excel (.xlsx)</button>
   </div>
 </div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
+// ====== CONFIGURAÇÃO DA PLANILHA ======
+const URL_PLANILHA = "https://script.google.com/macros/s/AKfycbwt7eFtBCTOf8GuIoHjx_S7bwJQlyd54BL0-95S2IG2kDXD9J92md6AdN-uIC2LM4tH/exec";
+const TOKEN_PLANILHA = "contas"; // o mesmo do Apps Script
+
 const CATS = {
   "Alimentação": {bg:"#EEEDFE",color:"#3C3489"},
   "Transporte":  {bg:"#E1F5EE",color:"#0F6E56"},
@@ -123,7 +121,6 @@ const CATS = {
   "Moradia":     {bg:"#EAF3DE",color:"#3B6D11"},
   "Outros":      {bg:"#F1EFE8",color:"#5F5E5A"}
 };
-
 const PALAVRAS_CAT = {
   "Alimentação": ["almoço","jantar","café","lanche","restaurante","mercado","supermercado","padaria","ifood","delivery","pizza","açaí","comida","refeição","hamburguer","salgado","feira","boteco","churrasco","sorvete"],
   "Transporte":  ["uber","99","táxi","taxi","ônibus","combustível","gasolina","estacionamento","metrô","passagem","transporte","moto","bicicleta","frete","pedágio","posto"],
@@ -141,14 +138,12 @@ function detectarCategoria(txt) {
   }
   return "Outros";
 }
-
 function extrairValor(txt) {
   const matches = txt.match(/\d+([.,]\d{1,2})?/g);
   if (!matches) return null;
   const nums = matches.map(m => parseFloat(m.replace(',','.'))).filter(n => n > 0 && n < 100000);
   return nums.length ? Math.max(...nums) : null;
 }
-
 function extrairData(txt) {
   const hoje = new Date();
   const lower = txt.toLowerCase();
@@ -162,7 +157,6 @@ function extrairData(txt) {
   }
   return hoje.toLocaleDateString('pt-BR');
 }
-
 function extrairDescricao(txt) {
   let desc = txt.replace(/gastei|comprei|paguei|fiz|foi|no |na |de |do |da |por |uns?|umas?|reais|real|r\$|\d+([.,]\d+)?|hoje|ontem|semana passada/gi,'').trim();
   desc = desc.replace(/\s+/g,' ').trim();
@@ -170,11 +164,9 @@ function extrairDescricao(txt) {
   return desc ? desc.charAt(0).toUpperCase() + desc.slice(1) : txt;
 }
 
-// Carrega gastos salvos no localStorage
+// Cache local (só para mostrar algo se a internet cair)
 let gastos = [];
 try { gastos = JSON.parse(localStorage.getItem('tuzin_gastos') || '[]'); } catch(e) {}
-
-let busy = false;
 
 function salvar() {
   try { localStorage.setItem('tuzin_gastos', JSON.stringify(gastos)); } catch(e) {}
@@ -202,65 +194,60 @@ function addMsg(html, tipo) {
   return div;
 }
 
-async function enviar() {
+function enviar() {
   const input = document.getElementById('msg-input');
   const txt = input.value.trim();
-  if (!txt || busy) return;
+  if (!txt) return;
   input.value = '';
-  busy = true;
-  document.getElementById('send-btn').disabled = true;
   addMsg(txt, 'user');
-  const loading = addMsg('Analisando...', 'bot loading');
 
-  let registrado = false;
-
-  try {
-    const hoje = new Date().toLocaleDateString('pt-BR');
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 300,
-        system: "Você é um assistente financeiro chamado Tuzin IA. Extraia dados de gastos do texto do usuário e responda SOMENTE com JSON válido, sem markdown, sem explicações. Formato: {\"descricao\":\"string\",\"valor\":number,\"categoria\":\"string\",\"data\":\"string\",\"confirmacao\":\"string\"}. Categorias disponíveis: Alimentação, Transporte, Saúde, Lazer, Compras, Educação, Moradia, Outros. Se não for um gasto claro, retorne {\"erro\":\"mensagem amigável\"}.",
-        messages: [{ role: "user", content: `Data de hoje: ${hoje}\nTexto: "${txt}"` }]
-      })
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const raw = data.content.map(b => b.text||'').join('').replace(/```json|```/g,'').trim();
-    const parsed = JSON.parse(raw);
-    loading.remove();
-    if (parsed.erro) {
-      addMsg(parsed.erro, 'bot');
-    } else {
-      gastos.unshift({ ...parsed, id: Date.now() });
-      salvar();
-      atualizarTotal();
-      const cat = CATS[parsed.categoria] || CATS["Outros"];
-      addMsg(`✅ Registrado! <span style="background:${cat.bg};color:${cat.color};padding:2px 9px;border-radius:12px;font-size:12px;font-weight:600">${parsed.categoria}</span><br><b>${parsed.descricao}</b> — R$ ${Number(parsed.valor).toFixed(2).replace('.',',')} em ${parsed.data}<br><span style="font-size:12px;color:#888">${parsed.confirmacao}</span>`, 'bot');
-      registrado = true;
-    }
-  } catch(e) {
-    loading.remove();
-    const valor = extrairValor(txt);
-    if (valor) {
-      const categoria = detectarCategoria(txt);
-      const data = extrairData(txt);
-      const descricao = extrairDescricao(txt);
-      gastos.unshift({ descricao, valor, categoria, data, id: Date.now() });
-      salvar();
-      atualizarTotal();
-      const cat = CATS[categoria] || CATS["Outros"];
-      addMsg(`✅ Registrado! <span style="background:${cat.bg};color:${cat.color};padding:2px 9px;border-radius:12px;font-size:12px;font-weight:600">${categoria}</span><br><b>${descricao}</b> — R$ ${valor.toFixed(2).replace('.',',')} em ${data}`, 'bot');
-      registrado = true;
-    } else {
-      addMsg('Não consegui identificar um valor. Tente algo como <i>"Almoço 35 reais"</i> ou <i>"Gastei 50 no mercado"</i>.', 'bot');
-    }
+  const valor = extrairValor(txt);
+  if (!valor) {
+    addMsg('Não consegui identificar um valor. Tente algo como <i>"Almoço 35 reais"</i> ou <i>"Gastei 50 no mercado"</i>.', 'bot');
+    return;
   }
+  const categoria = detectarCategoria(txt);
+  const data = extrairData(txt);
+  const descricao = extrairDescricao(txt);
+  const novo = { descricao, valor, categoria, data, id: Date.now() };
 
-  busy = false;
-  document.getElementById('send-btn').disabled = false;
+  gastos.unshift(novo);
+  salvar();
+  atualizarTotal();
+  enviarParaPlanilha(novo);
+
+  const cat = CATS[categoria] || CATS["Outros"];
+  addMsg(`✅ Registrado! <span style="background:${cat.bg};color:${cat.color};padding:2px 9px;border-radius:12px;font-size:12px;font-weight:600">${categoria}</span><br><b>${descricao}</b> — R$ ${valor.toFixed(2).replace('.',',')} em ${data}`, 'bot');
+}
+
+// ====== PLANILHA ======
+function enviarParaPlanilha(g) {
+  fetch(URL_PLANILHA, {
+    method: "POST",
+    body: JSON.stringify({
+      token: TOKEN_PLANILHA,
+      acao: "adicionar",
+      id: String(g.id),
+      data: g.data,
+      descricao: g.descricao,
+      valor: g.valor,
+      categoria: g.categoria
+    })
+  }).catch(() => {});
+}
+
+async function carregarDaPlanilha() {
+  try {
+    const res = await fetch(URL_PLANILHA + "?token=" + encodeURIComponent(TOKEN_PLANILHA));
+    const data = await res.json();
+    if (!data.ok) return;
+    gastos = data.gastos.reverse(); // planilha vai do mais antigo ao mais novo
+    salvar();
+    atualizarTotal();
+    renderGastos();
+  } catch (e) {
+    // sem internet: mantém o cache local
+  }
 }
 
 function atualizarTotal() {
@@ -288,17 +275,21 @@ function renderGastos() {
         <div class="gasto-data">${g.data}</div>
       </div>
       <div class="gasto-valor">R$ ${Number(g.valor).toFixed(2).replace('.',',')}</div>
-      <button class="del-btn" onclick="deletar(${g.id})">×</button>
+      <button class="del-btn" onclick="deletar('${g.id}')">×</button>
     </div>`;
   }).join('');
 }
 
 function deletar(id) {
   if (!confirm('Remover este gasto?')) return;
-  gastos = gastos.filter(g => g.id !== id);
+  gastos = gastos.filter(g => String(g.id) !== String(id));
   salvar();
   atualizarTotal();
   renderGastos();
+  fetch(URL_PLANILHA, {
+    method: "POST",
+    body: JSON.stringify({ token: TOKEN_PLANILHA, acao: "deletar", id: String(id) })
+  }).catch(() => {});
 }
 
 function exportar() {
@@ -321,8 +312,9 @@ function exportar() {
   XLSX.utils.writeFile(wb, `tuzin_gastos_${mes}.xlsx`);
 }
 
-// Inicializa total
+// Inicialização
 atualizarTotal();
+carregarDaPlanilha();
 </script>
 </body>
 </html>
