@@ -38,6 +38,9 @@
     #msg-input:focus { border-color: #534AB7; background: #fff; }
     #send-btn { width: 44px; height: 44px; border-radius: 50%; background: #534AB7; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     #send-btn:active { background: #3C3489; }
+    #status-planilha { font-size: 12px; color: #888; padding: 8px 16px 0; }
+    #btn-atualizar { margin: 10px 16px 0; padding: 10px; border: 1px solid #534AB7; border-radius: 10px; background: transparent; color: #534AB7; font-size: 14px; font-family: inherit; cursor: pointer; }
+    #btn-atualizar:active { background: #EEEDFE; }
     #gastos-stats { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #eee; }
     .stat-card { flex: 1; background: #f7f7f7; border-radius: 10px; padding: 10px 12px; }
     .stat-card p:first-child { font-size: 11px; color: #888; margin-bottom: 4px; }
@@ -94,6 +97,8 @@
     </div>
   </div>
   <div id="gastos-view">
+    <div id="status-planilha">Aguardando...</div>
+    <button id="btn-atualizar" onclick="carregarDaPlanilha()">🔄 Atualizar da planilha</button>
     <div id="gastos-stats">
       <div class="stat-card"><p>total do mês</p><p id="stat-total">R$ 0,00</p></div>
       <div class="stat-card"><p>lançamentos</p><p id="stat-count">0</p></div>
@@ -108,7 +113,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 // ====== CONFIGURAÇÃO DA PLANILHA ======
-const URL_PLANILHA = "https://script.google.com/macros/s/AKfycbwt7eFtBCTOf8GuIoHjx_S7bwJQlyd54BL0-95S2IG2kDXD9J92md6AdN-uIC2LM4tH/exec ";
+const URL_PLANILHA = "https://script.google.com/macros/s/AKfycbwt7eFtBCTOf8GuIoHjx_S7bwJQlyd54BL0-95S2IG2kDXD9J92md6AdN-uIC2LM4tH/exec";
 const TOKEN_PLANILHA = "contas"; // o mesmo do Apps Script
 
 const CATS = {
@@ -197,7 +202,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active',(i===0&&tab==='chat')||(i===1&&tab==='gastos')));
   document.getElementById('chat-view').style.display = tab==='chat'?'flex':'none';
   document.getElementById('gastos-view').style.display = tab==='gastos'?'flex':'none';
-  if(tab==='gastos') renderGastos();
+  if (tab==='gastos') { renderGastos(); carregarDaPlanilha(); }
 }
 
 function usar(btn) {
@@ -242,6 +247,10 @@ function enviar() {
 }
 
 // ====== PLANILHA ======
+function mostrarStatus(msg) {
+  document.getElementById('status-planilha').textContent = msg;
+}
+
 function enviarParaPlanilha(g) {
   fetch(URL_PLANILHA, {
     method: "POST",
@@ -258,16 +267,21 @@ function enviarParaPlanilha(g) {
 }
 
 async function carregarDaPlanilha() {
+  mostrarStatus('Carregando da planilha...');
   try {
-    const res = await fetch(URL_PLANILHA + "?token=" + encodeURIComponent(TOKEN_PLANILHA));
+    const res = await fetch(URL_PLANILHA + '?token=' + encodeURIComponent(TOKEN_PLANILHA) + '&t=' + Date.now());
     const data = await res.json();
-    if (!data.ok) return;
-    gastos = data.gastos.reverse(); // planilha vai do mais antigo ao mais novo
+    if (!data.ok) {
+      mostrarStatus('A planilha respondeu: ' + (data.erro || 'erro desconhecido'));
+      return;
+    }
+    gastos = data.gastos.reverse(); // a planilha vai do mais antigo ao mais novo
     salvar();
     atualizarTotal();
     renderGastos();
+    mostrarStatus('Lista atualizada: ' + gastos.length + ' lançamentos');
   } catch (e) {
-    // sem internet: mantém o cache local
+    mostrarStatus('Falha ao carregar: ' + e.message);
   }
 }
 
